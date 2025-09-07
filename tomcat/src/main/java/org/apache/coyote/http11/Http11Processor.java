@@ -59,7 +59,7 @@ public class Http11Processor implements Runnable, Processor {
             } else if ("/login".equals(requestPath)) {
                 handleLogin(queryParams, outputStream);
             } else {
-                handleStaticResource(fullPath, requestPath, outputStream);
+                handleStaticResource( requestPath, outputStream);
             }
 
         } catch (IOException | UncheckedServletException e) {
@@ -123,7 +123,7 @@ public class Http11Processor implements Runnable, Processor {
         sendResponse(200, "OK", "text/plain;charset=utf-8", "".getBytes(), outputStream);
     }
 
-    private void handleStaticResource(String fullPath, String requestPath, OutputStream outputStream)
+    private void handleStaticResource(String requestPath, OutputStream outputStream)
             throws IOException {
         URL resourceUrl = ClassLoader.getSystemResource("static" + requestPath);
         if (resourceUrl == null) {
@@ -132,19 +132,19 @@ public class Http11Processor implements Runnable, Processor {
         }
 
         byte[] fileBytes = Files.readAllBytes(Paths.get(resourceUrl.getPath()));
-        String contentType = determineContentType(fullPath);
+        String contentType = determineContentType(requestPath);
 
         sendResponse(200, "OK", contentType, fileBytes, outputStream);
     }
 
-    private String determineContentType(String fullPath) {
-        if (fullPath.endsWith(".css")) {
+    private String determineContentType(String path) {
+        if (path.endsWith(".css")) {
             return "text/css;charset=utf-8";
         }
-        if (fullPath.endsWith(".js")) {
+        if (path.endsWith(".js")) {
             return "application/javascript;charset=utf-8";
         }
-        if (fullPath.endsWith(".html")) {
+        if (path.endsWith(".html")) {
             return "text/html;charset=utf-8";
         }
         return "application/octet-stream";
