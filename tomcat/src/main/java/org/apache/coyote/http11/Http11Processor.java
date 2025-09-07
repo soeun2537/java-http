@@ -57,9 +57,13 @@ public class Http11Processor implements Runnable, Processor {
                 byte[] body = "Hello world!".getBytes(StandardCharsets.UTF_8);
                 sendResponse(200, "OK", "text/html;charset=utf-8", body, outputStream);
             } else if ("/login".equals(requestPath)) {
-                handleLogin(queryParams, outputStream);
+                if (queryParams.isEmpty()) {
+                    handleStaticResource("/login.html", outputStream);
+                } else {
+                    handleLogin(queryParams, outputStream);
+                }
             } else {
-                handleStaticResource( requestPath, outputStream);
+                handleStaticResource(requestPath, outputStream);
             }
 
         } catch (IOException | UncheckedServletException e) {
@@ -74,7 +78,7 @@ public class Http11Processor implements Runnable, Processor {
             return null;
         }
 
-       return tokens[1];
+        return tokens[1];
     }
 
     private String readRequestLine(InputStream inputStream) throws IOException {
@@ -120,7 +124,8 @@ public class Http11Processor implements Runnable, Processor {
             }
         }, () -> log.info("login fail(not found account) account: {}", account));
 
-        sendResponse(200, "OK", "text/plain;charset=utf-8", "".getBytes(), outputStream);
+        byte[] body = "Login Success!".getBytes(StandardCharsets.UTF_8);
+        sendResponse(200, "OK", "text/plain;charset=utf-8", body, outputStream);
     }
 
     private void handleStaticResource(String requestPath, OutputStream outputStream)
