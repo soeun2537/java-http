@@ -144,7 +144,10 @@ public class Http11Processor implements Runnable, Processor {
         if (fullPath.endsWith(".js")) {
             return "application/javascript;charset=utf-8";
         }
-        return "text/html;charset=utf-8";
+        if (fullPath.endsWith(".html")) {
+            return "text/html;charset=utf-8";
+        }
+        return "application/octet-stream";
     }
 
     private void sendResponse(int statusCode,
