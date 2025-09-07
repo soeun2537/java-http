@@ -45,8 +45,10 @@ public class Http11Processor implements Runnable, Processor {
                 return;
             }
 
-            String[] request = requestLine.split(" ");
-            String fullPath = request[1];
+            String fullPath = extractFullPath(requestLine, outputStream);
+            if (fullPath == null) {
+                return;
+            }
 
             String requestPath = extractPath(fullPath);
             Map<String, String> queryParams = extractQueryParams(fullPath);
@@ -63,6 +65,16 @@ public class Http11Processor implements Runnable, Processor {
         } catch (IOException | UncheckedServletException e) {
             log.error(e.getMessage(), e);
         }
+    }
+
+    private String extractFullPath(String requestLine, OutputStream outputStream) throws IOException {
+        String[] tokens = requestLine.trim().split("\\s+");
+        if (tokens.length < 3) {
+            sendResponse(400, "Bad Request", "text/plain;charset=utf-8", new byte[0], outputStream);
+            return null;
+        }
+
+       return tokens[1];
     }
 
     private String readRequestLine(InputStream inputStream) throws IOException {
