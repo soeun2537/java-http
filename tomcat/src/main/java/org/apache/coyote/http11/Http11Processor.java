@@ -1,12 +1,22 @@
 package org.apache.coyote.http11;
 
+import com.techcourse.db.InMemoryUserRepository;
 import com.techcourse.exception.UncheckedServletException;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.Socket;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.coyote.Processor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.net.Socket;
 
 public class Http11Processor implements Runnable, Processor {
 
@@ -14,7 +24,7 @@ public class Http11Processor implements Runnable, Processor {
 
     private final Socket connection;
 
-    public Http11Processor(final Socket connection) {
+    public Http11Processor(Socket connection) {
         this.connection = connection;
     }
 
@@ -25,23 +35,141 @@ public class Http11Processor implements Runnable, Processor {
     }
 
     @Override
-    public void process(final Socket connection) {
-        try (final var inputStream = connection.getInputStream();
-             final var outputStream = connection.getOutputStream()) {
+    public void process(Socket connection) {
+        try (var inputStream = connection.getInputStream();
+                var outputStream = connection.getOutputStream()) {
 
-            final var responseBody = "Hello world!";
+            String requestLine = readRequestLine(inputStream);
+            if (requestLine == null || requestLine.isEmpty()) {
+                sendResponse(400, "Bad Request", "text/plain;charset=utf-8", new byte[0], outputStream);
+                return;
+            }
 
-            final var response = String.join("\r\n",
-                    "HTTP/1.1 200 OK ",
-                    "Content-Type: text/html;charset=utf-8 ",
-                    "Content-Length: " + responseBody.getBytes().length + " ",
-                    "",
-                    responseBody);
+            String fullPath = extractFullPath(requestLine, outputStream);
+            if (fullPath == null) {
+                return;
+            }
 
-            outputStream.write(response.getBytes());
-            outputStream.flush();
+            String requestPath = extractPath(fullPath);
+            Map<String, String> queryParams = extractQueryParams(fullPath);
+
+            if ("/".equals(requestPath)) {
+                byte[] body = "Hello world!".getBytes(StandardCharsets.UTF_8);
+                sendResponse(200, "OK", "text/html;charset=utf-8", body, outputStream);
+            } else if ("/login".equals(requestPath)) {
+                if (queryParams.isEmpty()) {
+                    handleStaticResource("/login.html", outputStream);
+                } else {
+                    handleLogin(queryParams, outputStream);
+                }
+            } else {
+                handleStaticResource(requestPath, outputStream);
+            }
+
         } catch (IOException | UncheckedServletException e) {
             log.error(e.getMessage(), e);
         }
+    }
+
+    private String extractFullPath(String requestLine, OutputStream outputStream) throws IOException {
+        String[] tokens = requestLine.trim().split("\\s+");
+        if (tokens.length < 3) {
+            sendResponse(400, "Bad Request", "text/plain;charset=utf-8", new byte[0], outputStream);
+            return null;
+        }
+
+        return tokens[1];
+    }
+
+    private String readRequestLine(InputStream inputStream) throws IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+        return reader.readLine();
+    }
+
+    private String extractPath(String fullPath) {
+        int index = fullPath.indexOf("?");
+
+        if (index != -1) {
+            return fullPath.substring(0, index);
+        }
+        return fullPath;
+    }
+
+    private Map<String, String> extractQueryParams(String fullPath) {
+        Map<String, String> queryParams = new HashMap<>();
+        int index = fullPath.indexOf("?");
+        if (index == -1) {
+            return queryParams;
+        }
+
+        String queryString = fullPath.substring(index + 1);
+        for (String pairs : queryString.split("&")) {
+            String[] pair = pairs.split("=", 2);
+            if (pair.length == 2) {
+                queryParams.put(pair[0], pair[1]);
+            }
+        }
+        return queryParams;
+    }
+
+    private void handleLogin(Map<String, String> queryParams, OutputStream outputStream) throws IOException {
+        String account = queryParams.get("account");
+        String password = queryParams.get("password");
+
+        InMemoryUserRepository.findByAccount(account).ifPresentOrElse(user -> {
+            if (user.checkPassword(password)) {
+                log.info("user: {}", user);
+            } else {
+                log.info("login fail(password mismatch) account: {}", account);
+            }
+        }, () -> log.info("login fail(not found account) account: {}", account));
+
+        byte[] body = "Login Success!".getBytes(StandardCharsets.UTF_8);
+        sendResponse(200, "OK", "text/plain;charset=utf-8", body, outputStream);
+    }
+
+    private void handleStaticResource(String requestPath, OutputStream outputStream)
+            throws IOException {
+        URL resourceUrl = ClassLoader.getSystemResource("static" + requestPath);
+        if (resourceUrl == null) {
+            sendResponse(404, "Not Found", "text/html;charset=utf-8", new byte[0], outputStream);
+            return;
+        }
+
+        byte[] fileBytes = Files.readAllBytes(Paths.get(resourceUrl.getPath()));
+        String contentType = determineContentType(requestPath);
+
+        sendResponse(200, "OK", contentType, fileBytes, outputStream);
+    }
+
+    private String determineContentType(String path) {
+        if (path.endsWith(".css")) {
+            return "text/css;charset=utf-8";
+        }
+        if (path.endsWith(".js")) {
+            return "application/javascript;charset=utf-8";
+        }
+        if (path.endsWith(".html")) {
+            return "text/html;charset=utf-8";
+        }
+        return "application/octet-stream";
+    }
+
+    private void sendResponse(int statusCode,
+                              String statusMessage,
+                              String contentType,
+                              byte[] body,
+                              OutputStream outputStream) throws IOException {
+        String responseHeader = String.join(
+                "\r\n",
+                "HTTP/1.1 " + statusCode + " " + statusMessage,
+                "Content-Type: " + contentType,
+                "Content-Length: " + body.length,
+                "",
+                ""
+        );
+        outputStream.write(responseHeader.getBytes());
+        outputStream.write(body);
+        outputStream.flush();
     }
 }
