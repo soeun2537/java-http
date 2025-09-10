@@ -236,7 +236,6 @@ public class Http11Processor implements Runnable, Processor {
                 "Content-Type: " + contentType,
                 "Content-Length: " + body.length,
                 (cookie != null ? "Set-Cookie: " + cookie : ""),
-                "",
                 ""
         );
         outputStream.write(responseHeader.getBytes(StandardCharsets.UTF_8));
