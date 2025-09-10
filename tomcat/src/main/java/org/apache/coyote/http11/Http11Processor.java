@@ -9,6 +9,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Socket;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -116,7 +117,9 @@ public class Http11Processor implements Runnable, Processor {
         for (String pairs : body.split("&")) {
             String[] pair = pairs.split("=", 2);
             if (pair.length == 2) {
-                params.put(pair[0], pair[1]);
+                String key = URLDecoder.decode(pair[0], StandardCharsets.UTF_8);
+                String value = URLDecoder.decode(pair[1], StandardCharsets.UTF_8);
+                params.put(key, value);
             }
         }
         return params;
