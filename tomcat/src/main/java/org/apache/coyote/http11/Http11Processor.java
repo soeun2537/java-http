@@ -91,7 +91,7 @@ public class Http11Processor implements Runnable, Processor {
                 }
                 case "/login" -> {
                     if ("GET".equalsIgnoreCase(method)) {
-                        handleStaticResource("/login.html", outputStream);
+                        handleLoginGet(outputStream, headers);
                     } else if ("POST".equalsIgnoreCase(method)) {
                         handleLogin(queryParams, outputStream);
                     }
@@ -188,6 +188,26 @@ public class Http11Processor implements Runnable, Processor {
         } else {
             sendRedirect("/401.html", outputStream);
         }
+    }
+
+    private void handleLoginGet(OutputStream outputStream, Map<String, String> headers) throws IOException {
+        String cookie = headers.get("Cookie");
+        if (cookie != null) {
+            String[] cookies = cookie.split(";");
+            for (String c : cookies) {
+                String[] keyValue = c.trim().split("=", 2);
+                if (keyValue.length == 2 && "JSESSIONID".equals(keyValue[0])) {
+                    String sessionId = keyValue[1];
+                    Session session = SessionManager.findSession(sessionId);
+                    if (session != null && session.getAttribute("user") != null) {
+                        sendRedirect("/index.html", outputStream);
+                        return;
+                    }
+                }
+            }
+        }
+
+        handleStaticResource("/login.html", outputStream);
     }
 
     private void handleStaticResource(String requestPath, OutputStream outputStream)
