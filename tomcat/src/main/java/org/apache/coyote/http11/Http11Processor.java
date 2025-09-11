@@ -1,12 +1,13 @@
 package org.apache.coyote.http11;
 
+import com.techcourse.RequestMapping;
 import com.techcourse.exception.UncheckedServletException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
 import org.apache.coyote.Processor;
-import org.apache.coyote.http11.controller.Controller;
+import com.techcourse.controller.Controller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,7 +16,7 @@ public class Http11Processor implements Runnable, Processor {
     private static final Logger log = LoggerFactory.getLogger(Http11Processor.class);
 
     private final Socket connection;
-    private final HttpRequestMapping httpRequestMapping = new HttpRequestMapping();
+    private final RequestMapping requestMapping = new RequestMapping();
 
     public Http11Processor(Socket connection) {
         this.connection = connection;
@@ -36,7 +37,7 @@ public class Http11Processor implements Runnable, Processor {
             HttpRequest request = HttpRequestParser.parse(reader);
             HttpResponse response = new HttpResponse();
 
-            Controller controller = httpRequestMapping.getController(request);
+            Controller controller = requestMapping.getController(request);
             controller.service(request, response);
 
             response.write(outputStream);
