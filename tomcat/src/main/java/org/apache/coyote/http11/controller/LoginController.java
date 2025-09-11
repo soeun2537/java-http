@@ -4,8 +4,8 @@ import com.techcourse.db.InMemoryUserRepository;
 import com.techcourse.model.User;
 import org.apache.coyote.http11.HttpRequest;
 import org.apache.coyote.http11.HttpResponse;
-import org.apache.coyote.http11.Session;
-import org.apache.coyote.http11.SessionManager;
+import org.apache.coyote.http11.HttpSession;
+import org.apache.coyote.http11.HttpSessionManager;
 
 public class LoginController extends AbstractController {
 
@@ -16,8 +16,8 @@ public class LoginController extends AbstractController {
             for (String c : cookie.split(";")) {
                 String[] keyValue = c.trim().split("=", 2);
                 if (keyValue.length == 2 && "JSESSIONID".equals(keyValue[0])) {
-                    Session session = SessionManager.findSession(keyValue[1]);
-                    if (session != null && session.getAttribute("user") != null) {
+                    HttpSession httpSession = HttpSessionManager.findSession(keyValue[1]);
+                    if (httpSession != null && httpSession.getAttribute("user") != null) {
                         response.setStatusLine("HTTP/1.1", 302, "Found");
                         response.addHeader("Location", "/index.html");
                         return;
@@ -39,11 +39,11 @@ public class LoginController extends AbstractController {
 
         if (success) {
             User user = InMemoryUserRepository.findByAccount(account).get();
-            Session session = SessionManager.createSession();
-            session.setAttribute("user", user);
+            HttpSession httpSession = HttpSessionManager.createSession();
+            httpSession.setAttribute("user", user);
             response.setStatusLine("HTTP/1.1", 302, "Found");
             response.addHeader("Location", "/index.html");
-            response.addHeader("Set-Cookie", "JSESSIONID=" + session.getId());
+            response.addHeader("Set-Cookie", "JSESSIONID=" + httpSession.getId());
         } else {
             response.setStatusLine("HTTP/1.1", 302, "Found");
             response.addHeader("Location", "/401.html");

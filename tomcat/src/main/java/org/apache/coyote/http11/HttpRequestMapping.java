@@ -9,11 +9,11 @@ import org.apache.coyote.http11.controller.RegisterController;
 import org.apache.coyote.http11.controller.RootController;
 import org.apache.coyote.http11.controller.StaticController;
 
-public class RequestMapping {
+public class HttpRequestMapping {
 
     private final Map<String, Controller> controllers = new HashMap<>();
 
-    public RequestMapping() {
+    public HttpRequestMapping() {
         controllers.put("/", new RootController());
         controllers.put("/login", new LoginController());
         controllers.put("/register", new RegisterController());
